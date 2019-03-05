@@ -11,6 +11,56 @@ Functions for computing the anharmonic phonon transmission
 import numpy as np
 import sys
 
+######################################################################
+def computeAnh(vels,fijk,idsl,idsr,dt,tn,nl,nr):
+    """
+    See PHYSICAL REVIEW B 95, 115313 (2017) ... :)
+    """
+    vf = np.fft.fft(vels,axis=0)*dt #time scaling, i have a link about it
+    #somewhere
+    
+    lvf = np.zeros((tn,3*nl)).astype(complex) #fft of left atoms
+    rvf = np.zeros((tn,3*nr)).astype(complex) #fft of right atoms
+    
+    lvf[:,0::3] = vf[:,idsl*3] #vx on left side
+    lvf[:,1::3] = vf[:,idsl*3+1] #vy on left side 
+    lvf[:,2::3] = vf[:,idsl*3+2] #vz on left side
+    rvf[:,0::3] = vf[:,idsr*3] #vx on right side
+    rvf[:,1::3] = vf[:,idsr*3+1] #vy on right side 
+    rvf[:,2::3] = vf[:,idsr*3+2] #vz on right side
+    
+    #lvps = (abs(lvf)**2).mean(axis=1)
+    #rvps = (abs(rvf)**2).mean(axis=1)
+    #vps = (abs(vf)**2).mean(axis=1)
+
+    return [lvf, rvf, vf] #, lvps, rvps, vps]
+######################################################################
+def makeTime(dt,tn):
+    """
+    This function takes in the step size and number of steps in a block
+    and returns the corresponding angular frequency and THz array
+    """
+    om = np.arange(0,tn)*2*np.pi/(tn*dt) #angular frequency
+    thz = om/2/np.pi*1e-12 #frequency in THz
+    dom = om[1]-om[0]
+    
+    return [om, thz, dom]
+
+########################################################################
+def printParams(dtMD,dt,dT,steps,split,tn):
+    """
+    Prints params to screen
+    """
+    print('\n\tUsing MD timestep:\t\t'+str(dtMD*1e12)+'\t\tps')
+    print('\tEffective timestep:\t\t'+str(dt*1e12)+'\t\tps')
+    print('\tTemperature bias:\t\t'+str(dT)+'\t\tK')
+    print('\tTotal Number of Steps:\t\t'+str(steps)+'\t\t--')
+    print('\tBlocks for averaging:\t\t'+str(split)+'\t\t--')
+    print('\tTime per block:\t\t\t'+str(np.round(tn*dt*1e9,3))+'\t\tns')
+    print('\tMaximum Frequency:\t\t'+str(0.5/dt*1e-12)+'\t\tTHz')
+    print('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz\n')
+    print('\t--------------------------------------------------------\n')
+
 ############################################################################
 def gsmooth(Raw, win, dom):
     """
@@ -97,7 +147,7 @@ def readFijk(infile):
     """
     
     filename = 'Fijk.dat' #Force constant data
-    with open(filename) as fid:
+    with open(filename,'r') as fid:
         nl = int(fid.readline().strip().split()[1]) #number of atoms on left side
         nr = int(fid.readline().strip().split()[1]) #number of atoms on right side
         n = nl+nr #total number of atoms
@@ -109,9 +159,8 @@ def readFijk(infile):
             ids[i] = int(tmp[0])
             side[i] = int(tmp[1])
         
-        idsl = ids[np.argwhere(side[:] == 1)] #left ids
-        idsr = ids[np.argwhere(side[:] == 2)] #left right
-        del ids, side
+        idsl = np.argwhere(side[:] == 1) #left ids
+        idsr = np.argwhere(side[:] == 2) #left right
         
         if (nl != len(idsl) or nr != len(idsr) or nl != nr):
             sys.exit('\n\tLAMMPS SETUP ERROR: Number of atoms on left and '
@@ -172,7 +221,7 @@ def readFijk(infile):
             fijk[j,:,:] = -np.subtract(fikplus,fikminus)/(2*du) #dfi due to 
             #movement of j. matrix elements are third order terms, see docstring
             
-    return [fijk, du, idsl, idsr, nl, nr, n]
+    return [fijk, du, idsl.reshape(nl), idsr.reshape(nr), ids, nl, nr, n]
 
 
 ############################################################################

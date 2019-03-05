@@ -20,8 +20,8 @@ variable	NX equal lx-${Vac}
 print		${NX}
 
 #---------------- Define the interface -----------------
-variable 	xmid equal 10.183125
-variable	dmid equal 1.5
+variable 	xmid equal 41.9343
+variable	dmid equal 3
 
 variable 	xmidL equal ${xmid}-0.075 	##Small buffer to avoid double counting
 variable	xmidR equal ${xmid}+0.075

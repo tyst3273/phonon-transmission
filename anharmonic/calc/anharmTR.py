@@ -10,7 +10,9 @@ This code calculates the anharmonic phonon transmission across interfaces
 in crystals. It uses force constants and velocities from MD simulations 
 following the method in PHYSICAL REVIEW B 95, 115313 (2017)
 """
+
 import numpy as np
+import sys
 import anharmFX as fx
 
 ##### SIMULATION PARAMETERS #####
@@ -19,7 +21,7 @@ dT = 20 #NEMD bath temperature difference
 dtMD = 0.5e-15 #MD timestep
 dn = 2**4 #frequency velocities are printed
 dt = dtMD*dn #effective timestep for velocity data
-steps = 2**20 #number of simulation steps
+steps = 2**19 #number of simulation steps
 
 split = 2 #number of chunks to split data into for averaging
 tn = (steps/dn/split) #number of steps per block of data
@@ -34,27 +36,58 @@ outfile = 'anh.tr.TEST.dat'
 #####################################################################
 #--------------------------------------------------------------------
 #####################################################################
-
-print('\n\tUsing MD timestep:\t\t'+str(dtMD*1e12)+'\t\tps')
-print('\tEffective timestep:\t\t'+str(dt*1e12)+'\t\tps')
-print('\tTemperature bias:\t\t'+str(dT)+'\t\tK')
-print('\tTotal Number of Steps:\t\t'+str(steps)+'\t\t--')
-print('\tBlocks for averaging:\t\t'+str(split)+'\t\t--')
-print('\tTime per block:\t\t\t'+str(np.round(tn*dt*1e9,3))+'\t\tns')
-print('\tMaximum Frequency:\t\t'+str(0.5/dt*1e-12)+'\t\tTHz')
-print('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz\n')
-print('\t--------------------------------------------------------\n')
+## Print parameters to screen
+fx.printParams(dtMD,dt,dT,steps,split,tn)
 
 ## Get force constants from file 
-fx.tic()
-print('\tNow reading force constants from '+str(forcefile)+'\n')
-fijk, du, idsl, idsr, nl, nr, n = fx.readFijk(forcefile)
-fx.toc()
+#fx.tic()
+#print('\tNow reading force constants from '+str(forcefile)+'\n')
+#fijk, du, idsl, idsr, ids, nl, nr, n = fx.readFijk(forcefile)
+#fx.toc()
+
+## Generate time and freq. arrays
+om, thz, dom = fx.makeTime(dt,tn)
 
 ## Read velocites 
-for i in range(split): #loop over blocks for averaging
-    print('\n\tNow reading velocities from block '+str(i)+'')
-    vels = np.zeros((n,3)) #vx,vy,vz
+with open(velsfile,'r') as fid:
+    if int(fid.readline().strip().split()[1]) != n: #error checking
+                sys.exit('LAMMPS ERROR: Numer of atoms in vels run doesn\'t'
+                         'match forces run')
+    if int(fid.readline().strip().split()[1]) != dn: #error checking
+        sys.exit('LAMMPS ERROR: Different stride given in '
+                 +str(velsfile))
+    fid.readline() #skip comment
+    for j in range(n): #read the ids for error checking
+        if ids[j] != int(fid.readline().strip().split()[0]):
+            sys.exit('LAMMPS ERROR: ids in '+str(velsfile)+' don\'t'
+                 ' match'+str(forcefile))
+    tmp = fid.readline() #skip comment
+            
+    for i in range(1):#split): #loop over blocks for averaging
+        fx.tic()
+        vels = np.zeros((tn,n*3)) # [time,(1vx,1vy,1vz,2vx,2vy,...)]
+        print('\n\tNow reading velocities from block '+str(i+1)+'\n')                
+        num = tn/10
+        for j in range(tn): 
+            if j != 0 and j%(num) == 0: #print progress updates
+                print('\t\tNow '
+                      +str(10*np.round(j/num,decimals=1))+
+                      '% done reading block'+str(i+1))
+            for k in range(n*3):
+                vels[j,k] = float(fid.readline().strip().split()[0])
+        
+        lvf, rvf, vf = fx.computeAnh(vels,fijk,idsl,idsr,dt,tn,nl,nr)
+        #fft of left atoms, right atoms, and ALL atoms respectively
+        #might get memory heavy but don't want to index in the loop
+        
+        fx.toc()
+            
+        
+
+            
+                
+            
+            
     
     
 
