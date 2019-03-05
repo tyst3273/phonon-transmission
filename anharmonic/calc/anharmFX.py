@@ -196,7 +196,7 @@ def toc():
     """
     import time
     if 'startTime_for_tictoc' in globals():
-        print("\n\tElapsed time is "+
+        print("\n\t\tElapsed time is "+
               str(np.round(time.time()-
                        startTime_for_tictoc,decimals=3))+" seconds.")
     else:

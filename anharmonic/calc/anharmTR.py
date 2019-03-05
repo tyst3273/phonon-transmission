@@ -38,16 +38,18 @@ outfile = 'anh.tr.TEST.dat'
 print('\n\tUsing MD timestep:\t\t'+str(dtMD*1e12)+'\t\tps')
 print('\tEffective timestep:\t\t'+str(dt*1e12)+'\t\tps')
 print('\tTemperature bias:\t\t'+str(dT)+'\t\tK')
-print('\tTotal Number of Steps:\t\t'+str(steps))
-print('\tBlocks for averaging:\t\t'+str(split))
+print('\tTotal Number of Steps:\t\t'+str(steps)+'\t\t--')
+print('\tBlocks for averaging:\t\t'+str(split)+'\t\t--')
 print('\tTime per block:\t\t\t'+str(np.round(tn*dt*1e9,3))+'\t\tns')
 print('\tMaximum Frequency:\t\t'+str(0.5/dt*1e-12)+'\t\tTHz')
 print('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz\n')
 print('\t--------------------------------------------------------\n')
 
 ## Get force constants from file 
+fx.tic()
 print('\tNow reading force constants from '+str(forcefile)+'\n')
 fijk, du, idsl, idsr, nl, nr, n = fx.readFijk(forcefile)
+fx.toc()
 
 ## Read velocites 
 for i in range(split): #loop over blocks for averaging
