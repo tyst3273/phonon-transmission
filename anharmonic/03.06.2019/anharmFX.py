@@ -12,28 +12,28 @@ import numpy as np
 import sys
 
 ######################################################################
-#def computeAnh(vels,fijk,idsl,idsr,dt,tn,nl,nr):
-#    """
-#    See PHYSICAL REVIEW B 95, 115313 (2017) ... :)
-#    """
-#    vf = np.fft.fft(vels,axis=0)*dt #time scaling, i have a link about it
-#    #somewhere
-#    
-#    lvf = np.zeros((tn,3*nl)).astype(complex) #fft of left atoms
-#    rvf = np.zeros((tn,3*nr)).astype(complex) #fft of right atoms
+def computeAnh(vels,fijk,idsl,idsr,dt,tn,nl,nr):
+    """
+    See PHYSICAL REVIEW B 95, 115313 (2017) ... :)
+    """
+    vf = np.fft.fft(vels,axis=0)*dt #time scaling, i have a link about it
+    #somewhere
     
-#    lvf[:,0::3] = vf[:,idsl*3] #vx on left side
-#    lvf[:,1::3] = vf[:,idsl*3+1] #vy on left side 
-#    lvf[:,2::3] = vf[:,idsl*3+2] #vz on left side
-#    rvf[:,0::3] = vf[:,idsr*3] #vx on right side
-#    rvf[:,1::3] = vf[:,idsr*3+1] #vy on right side 
-#    rvf[:,2::3] = vf[:,idsr*3+2] #vz on right side
+    lvf = np.zeros((tn,3*nl)).astype(complex) #fft of left atoms
+    rvf = np.zeros((tn,3*nr)).astype(complex) #fft of right atoms
+    
+    lvf[:,0::3] = vf[:,idsl*3] #vx on left side
+    lvf[:,1::3] = vf[:,idsl*3+1] #vy on left side 
+    lvf[:,2::3] = vf[:,idsl*3+2] #vz on left side
+    rvf[:,0::3] = vf[:,idsr*3] #vx on right side
+    rvf[:,1::3] = vf[:,idsr*3+1] #vy on right side 
+    rvf[:,2::3] = vf[:,idsr*3+2] #vz on right side
     
     #lvps = (abs(lvf)**2).mean(axis=1)
     #rvps = (abs(rvf)**2).mean(axis=1)
     #vps = (abs(vf)**2).mean(axis=1)
 
-#    return [lvf, rvf, vf] #, lvps, rvps, vps]
+    return [lvf, rvf, vf] #, lvps, rvps, vps]
 ######################################################################
 def makeTime(dt,tn):
     """
@@ -122,7 +122,7 @@ def readFijk(infile):
     = 294912 blocks. #     
     
     The function returns fijk, the matrix elements of the anharmonic forces.
-    fijk has the shape [3*nr,3*nl,3*n] -> [j,i,k]. Each individual force 
+    fijk has the shape [3*nl,3*nr,3*n] -> [j,i,k]. Each individual force 
     constant is defined as:
         
          d^2 Fi_a
@@ -133,31 +133,12 @@ def readFijk(infile):
     a = (x,y,z) due to the movement of atoms j in b=(x,y,z) and k in c=(x,y,z).
     
     Each element of first dimension of the fijk matrix corresponds to the 
-    force on atom i due to the movement of atom j in each direction and k in 
-    each direction. I.e. the first element is a matrix with the force 
-    constant elements:
+    movement of atom j in each direction. I.e. the first element is a matrix
+    with the force constant elements:
         
-         d^2 F1_x         d^2 F1_x         d^2 F1_x      d^2 F1_x        
-        ----------       ----------       ----------     ----------  .....
-        dr1_x dr1_x      dr1_x dr1_y      dr1_x dr1_z    dr2_x dr1_z
-        
-        
-          d^2 F1_x        d^2 F1_x         d^2 F1_x      d^2 F1_x        
-        ----------       ----------       ----------     ----------  .....
-        dr1_y dr1_x      dr1_y dr1_y      dr1_y dr1_z    dr2_x dr1_z
-        
-        
-        d^2 F1_x         d^2 F1_x           d^2 F1_x      d^2 F1_x        
-        ----------       ----------       ----------     ----------  .....
-        dr1_z dr1_x      dr1_z dr1_y       dr1_z dr1_z    dr2_x dr1_z
-        
-        
-         d^2 F1_x         d^2 F1_x          d^2 F1_x      d^2 F1_x     
-        ----------       ----------        ----------     ---------  .....
-        dr2_x dr1_x      dr2_x dr1_y       dr2_x dr1_z   dr2_x dr1_z 
-        
-            :               :                  :               :
-            :               :                  :               :
+         d^2 Fi_a
+        ----------
+        dr1_x drk_c
         
     It seems counter intuitive to have the dimensions ordered this way but it
     is more straightforward to extract them from the file and to view them in
@@ -237,9 +218,9 @@ def readFijk(infile):
                 #dFi/drk, each matrix corresponds to the '-j' in d^2Fi/drk/drj
                 #rows are ix,iy,iz columns kx,ky,kz
                 
-            fijk[:,j,:] = -np.subtract(fikplus,fikminus)/(2*du) #dfi due to 
+            fijk[j,:,:] = -np.subtract(fikplus,fikminus)/(2*du) #dfi due to 
             #movement of j. matrix elements are third order terms, see docstring
-
+            
     return [fijk, du, idsl.reshape(nl), idsr.reshape(nr), ids, nl, nr, n]
 
 
