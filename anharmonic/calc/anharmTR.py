@@ -42,7 +42,7 @@ fx.printParams(dtMD,dt,dT,steps,split,tn)
 ## Get force constants from file 
 fx.tic()
 print('\tNow reading force constants from '+str(forcefile)+'\n')
-#fijk, du, idsl, idsr, ids, nl, nr, n, = fx.readFijk(forcefile)
+fijk, du, idsl, idsr, ids, nl, nr, n, = fx.readFijk(forcefile)
 fx.toc()
 
 ## Generate time and freq. arrays
