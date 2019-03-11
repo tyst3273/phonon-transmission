@@ -112,7 +112,7 @@ compute         real_temp gmoves temp
 
 # ----------- Equilibration and thermalization ----------------
 variable        Tis atom ${TL}-x/xhi*${dT} #ty's addition
-fix		NVT gmoves langevin v_Tis 1.0 2.14 ${SEED} # zero yes # ty's addition
+fix		NVT gmoves langevin v_Tis 1.0 2.14 ${SEED} # ty's addition
 fix		FREEZE gfixed setforce 0.0 0.0 0.0
 fix		NVE gmoves nve
 
@@ -128,8 +128,8 @@ write_restart   restart.NVT.*
 restart         500000 restart
 reset_timestep	1
 
-fix		LTC gcold langevin ${TR} ${TR} 2.14 ${langSEED} tally yes zero yes
-fix		LTH ghot  langevin ${TL} ${TL} 2.14 ${langSEED} tally yes zero yes
+fix		LTC gcold langevin ${TR} ${TR} 2.14 ${langSEED} tally yes # zero yes
+fix		LTH ghot  langevin ${TL} ${TL} 2.14 ${langSEED} tally yes # zero yes
 
 variable	HFluxO equal f_LTC/v_Area/step/dt*v_convert
 variable	HFluxI equal f_LTH/v_Area/step/dt*v_convert

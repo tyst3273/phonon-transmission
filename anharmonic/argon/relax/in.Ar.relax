@@ -49,10 +49,19 @@ dump_modify     snapxyz every ${snapprint}
 restart		500000 restart
 thermo          ${thermocalc}
 velocity	all create ${Tlo} ${SEED} mom yes rot yes dist gaussian
-fix		NVT all nvt temp ${Tlo} ${Thi} 0.05 tchain 10
+fix		NVT all nvt temp ${Tlo} ${Thi} $(100*dt) tchain 10
 run		${NRUNNVT}
 unfix		NVT
 write_restart	restart.NVT.*
+
+# ------------ Annealing -----------------------------------------
+fix             equil all langevin ${Thi} $T $(100*dt) ${langSEED} tally yes zero yes
+fix             NVE all nve
+run             ${NRUNanneal}
+unfix           equil
+unfix           NVE
+write_restart	restart.anneal.300.*
+
 
 # -------------- NVE Equilibration ----------------------------------
 fix             NVE all nve
@@ -62,7 +71,7 @@ unfix           NVE
 write_restart   restart.anneal.NVE.*
 
 # ------------ Pressure Relaxation -----------------------------------------
-fix             NPT all npt temp $T $T 0.05 x 0 0 0.5 y 0 0 0.5 z 0 0 0.5 couple none tchain 10
+fix             NPT all npt temp $T $T $(100*dt) x 0 0 $(1000*dt) y 0 0 $(1000*dt) z 0 0 $(1000*dt) couple none tchain 10
 
 run             ${NRUNNPT}
 unfix           NPT
