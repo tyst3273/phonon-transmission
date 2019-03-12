@@ -196,6 +196,10 @@ def computeQ(kij,vels,om,idsl,idsr,nl,nr,tn,dt,s):
     vr[:,1::3] = vfft[:,idsr*3+1]
     vr[:,2::3] = vfft[:,idsr*3+2]
 
+    vl = np.asfortranarray(vl)
+    vr = np.asfortranarray(vr)
+    kij = np.asfortranarray(kij)
+
     print('\n\tNow computing heat current for block '+str(s+1)+'\n')
     num = tn/10
     for j in range(tn):

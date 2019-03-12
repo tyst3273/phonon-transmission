@@ -28,7 +28,7 @@ steps = 2**22 #number of simulation steps
 split = 4 #number of chunks to split data into for averaging
 tn = (steps/dn/split) #number of steps per block of data
 
-win = 0.01 #gaussian smoothing width = THz
+win = 0.9 #gaussian smoothing width = THz
 kb = 1.38063e-23 #Boltzmann's constant, J/K
 
 forcefile = 'Fij.dat'
