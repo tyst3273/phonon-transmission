@@ -93,7 +93,7 @@ tr = fx.gsmooth(tr,win,dom) #gaussian convolution
 ## Write to output file
 fx.writeTr(outfile,thz,tr,qom,dT,dtMD,tn,win)
 
-print('\tALL DONE!\n')
+print('\n\tALL DONE!\n')
 fx.toc()
 
 ## Plot the results
