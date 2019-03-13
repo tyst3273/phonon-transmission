@@ -1,0 +1,25 @@
+atom_style      atomic
+units           metal
+dimension       3
+boundary        p p p
+processors      * 1 1
+
+#----------------------- ATOM DEFINITION-----------------------------------
+
+read_restart	restart
+
+#variable	size string 
+variable	filetowrite string data.forces
+
+shell 		rm ${filetowrite}
+
+pair_style 	tersoff
+pair_coeff 	* * SiCGe.tersoff Si(D)
+
+#-------------------------- fix NVE ------------------------------------------------
+
+fix 		NVE all nve
+
+write_data	${filetowrite} nocoeff
+
+print 		"all done"
