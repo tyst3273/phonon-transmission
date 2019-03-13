@@ -42,7 +42,7 @@ fx.printParams(dtMD,dt,dT,steps,split,tn)
 ## Get force constants from file 
 fx.tic()
 print('\tNow reading force constants from '+str(forcefile)+'\n')
-#fijk, du, idsl, idsr, ids, nl, nr, n, = fx.readFijk(forcefile)
+fijk, du, idsl, idsr, ids, nl, nr, n, = fx.readFijk(forcefile)
 fx.toc()
 
 ## Generate time and freq. arrays
@@ -66,7 +66,6 @@ with open(velsfile,'r') as fid:
      
     ## Get velocities for each block
     for s in range(1):#split): #loop over blocks for averaging
-        fx.tic()
         vels = np.zeros((tn,n*3)) # [time,(1vx,1vy,1vz,2vx,2vy,...)]
         print('\n\tNow reading velocities from block '+str(s+1)+'\n')                
         num = tn/10
@@ -81,7 +80,6 @@ with open(velsfile,'r') as fid:
         
         
         ## Compute the spectral conductance terms
-        fx.tic()
         print('\n\tNow computing anharmonic contributions for block '
               +str(s+1)+'\n')
         vfft = np.fft.fft(vels,axis=0)*dt #time scaling, have a link somewhere
