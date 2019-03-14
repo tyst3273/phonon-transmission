@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Sun Mar  3 20:25:02 2019
@@ -10,30 +10,66 @@ Functions for computing the anharmonic phonon transmission
 """
 import numpy as np
 import sys
+import scipy.sparse as sp
 
 ######################################################################
-#def computeAnh(vels,fijk,idsl,idsr,dt,tn,nl,nr):
+### Runs out of fucking memory
+#def phi_dot_vk(fijk,vk,nr,nl,nfreq,s):
 #    """
-#    See PHYSICAL REVIEW B 95, 115313 (2017) ... :)
+#    Return sparse phi_ijk^xyz_dot_vk array, on for every vi x y and z
+#    Order is i: 1x, 1y, 1z, 2x, 2y, 2z, ...
 #    """
-#    vf = np.fft.fft(vels,axis=0)*dt #time scaling, i have a link about it
-#    #somewhere
+#    kxvk = np.zeros((nr*3,nfreq)).astype(complex)
+#    kyvk = np.zeros((nr*3,nfreq)).astype(complex)
+#    kzvk = np.zeros((nr*3,nfreq)).astype(complex)
+#    phi = [0]*(nl*3)
+#    for i in range(nl): #loop over left atoms    
+#        if i != 0 and i%(nl//10) == 0: #print progress updates
+#            print(('\t\tNow '+str(10*np.round(i/(nl//10),1))+'% done '
+#                  'comptuting phi-vk dot product for block '+str(s+1)))
 #    
-#    lvf = np.zeros((tn,3*nl)).astype(complex) #fft of left atoms
-#    rvf = np.zeros((tn,3*nr)).astype(complex) #fft of right atoms
+#        kx = sp.csr_matrix(fijk[i*3,...]) #phi on i in x
+#        ky = sp.csr_matrix(fijk[i*3+1,...]) #phi on i in y
+#        kz = sp.csr_matrix(fijk[i*3+2,...]) #phi on i in z
+#    
+#        #faster to compute this dot product only once per atom
+#        for w in range(nfreq): #loop over omega prime
+#            kxvk[:,w] = kx.dot(vk[:,w])
+#            kyvk[:,w] = ky.dot(vk[:,w])
+#            kzvk[:,w] = kz.dot(vk[:,w])
+#       
+#        phi[i*3] = sp.csr_matrix(kxvk)
+#        phi[i*3+1] = sp.csr_matrix(kyvk)
+#        phi[i*3+2] = sp.csr_matrix(kzvk)
+#        
+#    return phi
+ 
+def velsFFT(vels,idsr,idsl,nr,nl,dt,tn,freq):
+    """
+    Returns Fourier transformed velocities aranged from (-freqMax,freqMax)
+    vk is transposed for phi_dot_vk. It's not used elsewhere so it
+    doesn't matter.
+    """
+    vk = np.fft.fft(vels,axis=0)*dt
+    vk = np.append(vk[tn//2:,:],vk[0:tn//2,:],axis=0)
+    #(-freqmax,freqmax)
+    #velocities of right atoms        
+    vj = np.zeros((tn,nr*3)).astype(complex) 
+    vj[:,0::3] = vk[:,idsr*3] #vx on right side
+    vj[:,1::3] = vk[:,idsr*3+1] #vy on right side
+    vj[:,2::3] = vk[:,idsr*3+2] #vz on right side
+    vj = vj[freq,:]
+    #velocities of left atoms        
+    vi = np.zeros((tn,nl*3)).astype(complex) 
+    vi[:,0::3] = vk[:,idsl*3] #vx on left side
+    vi[:,1::3] = vk[:,idsl*3+1] #vy on left side
+    vi[:,2::3] = vk[:,idsl*3+2] #vz on left side
+    vi = vi[freq,:]
+    #transpose for dot product
+    vk = vk[freq,:].T    
     
-#    lvf[:,0::3] = vf[:,idsl*3] #vx on left side
-#    lvf[:,1::3] = vf[:,idsl*3+1] #vy on left side 
-#    lvf[:,2::3] = vf[:,idsl*3+2] #vz on left side
-#    rvf[:,0::3] = vf[:,idsr*3] #vx on right side
-#    rvf[:,1::3] = vf[:,idsr*3+1] #vy on right side 
-#    rvf[:,2::3] = vf[:,idsr*3+2] #vz on right side
+    return [vi, vj, vk]
     
-    #lvps = (abs(lvf)**2).mean(axis=1)
-    #rvps = (abs(rvf)**2).mean(axis=1)
-    #vps = (abs(vf)**2).mean(axis=1)
-
-#    return [lvf, rvf, vf] #, lvps, rvps, vps]
 ######################################################################
 def makeTime(dt,tn):
     """
@@ -53,15 +89,15 @@ def printParams(dtMD,dt,dT,steps,split,tn,fcut):
     """
     Prints params to screen
     """
-    print('\n\tUsing MD timestep:\t\t'+str(dtMD*1e12)+'\t\tps')
-    print('\tEffective timestep:\t\t'+str(dt*1e12)+'\t\tps')
-    print('\tTemperature bias:\t\t'+str(dT)+'\t\tK')
-    print('\tTotal Number of Steps:\t\t'+str(steps)+'\t\t--')
-    print('\tBlocks for averaging:\t\t'+str(split)+'\t\t--')
-    print('\tTime per block:\t\t\t'+str(np.round(tn*dt*1e9,3))+'\t\tns')
-    print('\tMaximum Frequency:\t\t'+str(np.round(0.5/dt*1e-12,3))+'\t\tTHz')
-    print('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz')
-    print('\tUsing cutoff frequency:\t\t'+str(fcut)+'\t\tTHz\n')
+    print(('\n\tUsing MD timestep:\t\t'+str(dtMD*1e12)+'\t\tps'))
+    print(('\tEffective timestep:\t\t'+str(dt*1e12)+'\t\tps'))
+    print(('\tTemperature bias:\t\t'+str(dT)+'\t\tK'))
+    print(('\tTotal Number of Steps:\t\t'+str(steps)+'\t\t--'))
+    print(('\tBlocks for averaging:\t\t'+str(split)+'\t\t--'))
+    print(('\tTime per block:\t\t\t'+str(np.round(tn*dt*1e9,3))+'\t\tns'))
+    print(('\tMaximum Frequency:\t\t'+str(np.round(0.5/dt*1e-12,3))+'\t\tTHz'))
+    print(('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz'))
+    print(('\tUsing cutoff frequency:\t\t'+str(fcut)+'\t\tTHz\n'))
     print('\t--------------------------------------------------------\n')
 
 ############################################################################
@@ -191,13 +227,13 @@ def readFijk(infile):
         du = float(fid.readline().strip().split()[1]) #dr step size
         fijk = np.zeros((3*nl,3*nr,3*n)) #see docstring
         
-        num = 3*nl/10
+        num = int(3*nl/10)
         for j in range(3*nl): #loop over x,y,z for all atoms in the left side
             
             if j != 0 and j%(num) == 0: #print progress updates
-                print('\t\tNow '
+                print(('\t\tNow '
                       +str(10*np.round(j/num,decimals=1))+
-                      '% done reading force constants')
+                      '% done reading force constants'))
                 
             fikplus = np.zeros((nr*3,n*3)) 
             fikminus = np.zeros((nr*3,n*3))
@@ -267,8 +303,8 @@ def toc():
     """
     import time
     if 'startTime_for_tictoc' in globals():
-        print("\n\t\tElapsed time is "+
+        print(("\n\t\tElapsed time is "+
               str(np.round(time.time()-
-                       startTime_for_tictoc,decimals=3))+" seconds.")
+                       startTime_for_tictoc,decimals=3))+" seconds."))
     else:
         print("\n\t\tToc: start time not set") 
