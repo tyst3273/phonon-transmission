@@ -138,8 +138,8 @@ write_restart   restart.NVT.*
 restart         500000 restart
 reset_timestep	1
 
-fix		LTC gcold langevin ${TR} ${TR} 0.1 ${langSEED} tally yes zero yes
-fix		LTH ghot  langevin ${TL} ${TL} 0.1 ${langSEED} tally yes zero yes
+fix		LTC gcold langevin ${TR} ${TR} 0.1 ${langSEED} tally yes
+fix		LTH ghot  langevin ${TL} ${TL} 0.1 ${langSEED} tally yes
 
 variable	HFluxO equal f_LTC/v_Area/step/dt*v_convert
 variable	HFluxI equal f_LTH/v_Area/step/dt*v_convert

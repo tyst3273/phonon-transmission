@@ -9,8 +9,6 @@ ty.sterling@colorado.edu
 This code calculates the anharmonic phonon transmission across interfaces
 in crystals. It uses force constants and velocities from MD simulations 
 following the method in PHYSICAL REVIEW B 95, 115313 (2017)
-
-UPDATE 03.13.2019: Including cutoff frequency to save time looping
 """
 
 import numpy as np
@@ -52,10 +50,10 @@ fx.toc()
 
 ## Generate time and freq. arrays
 om, thz, dom = fx.makeTime(dt,tn)
-fmax = np.argwhere(thz < fcut) #maximum frequency
-fmin = np.argwhere(thz > -fcut) #minimum frequency
-freq = np.intersect1d(fmax,fmin) #indicies of frequency points to cut off
-nfreq = len(freq) #number of frequency points to check
+fmax = np.argwhere(thz < fcut)
+fmin = np.argwhere(thz > -fcut)
+freq = np.intersect1d(fmax,fmin)
+
 
 ## Read velocites 
 with open(velsfile,'r') as fid:
@@ -107,7 +105,7 @@ with open(velsfile,'r') as fid:
         vi[:,1::3] = vk[:,idsl*3+1] #vy on left side
         vi[:,2::3] = vk[:,idsl*3+2] #vz on left side
         
-        qom = np.zeros((nfreq,nl*3)).astype(complex)
+        qom = np.zeros((tn,nl*3)).astype(complex)
         for i in range(1):#nl) #loop over left atoms    
             if i != 0 and i%(nl/10) == 0: #print progress updates
                 print('\t\tNow '+str(10*np.round(i/(nl/10),1))+'% done '
@@ -118,21 +116,18 @@ with open(velsfile,'r') as fid:
             phiz = np.asfortranarray(fijk[i*3+2,...]) #phi on i in z
             
             ##############################################################            
-            vj = np.flipud(vj[freq,:]).conj() #(freqmax,-freqmax)
+            vj = np.flipud(vj).conj() #(freqmax,-freqmax)
             vj = np.roll(vj,1,axis=0) #roll once to start at 0 in the loop
-            vk = vk[freq,:].T #for dot product
-            om = om[freq]
+            vk = vk.T #for dot product
             omp = np.roll(np.flipud(om),1,axis=0) 
-            for w in range(nfreq):
-                if w != 0 and w%(nfreq/1000) == 0: #print progress updates
-                    print('\t\tNow '+str(np.round(w/(nfreq/1000),1))+'% done '
+            for w in range(1):#tn):
+                if w != 0: #print progress updates
+                    print('\t\tNow '+str(10*np.round(w/tn,1))+'% done '
                           'comptuting the etc term for block '+str(s+1))
-                    fx.toc()
-                    
                 vj = np.roll(vj,-1,axis=0) #vj*(w-w')
                 omp = np.roll(omp,-1,axis=0) #(w-w')
                 
-                for wp in range(nfreq): #loop over omega prime
+                for wp in range(tn): #loop over omega prime
                     if om[wp] == 0 or omp[wp] == 0: #divide by 0
                         qom[wp,i*3:i*3+2] = 0+0j
                     else: #dot product vj*_dot_kijk_dot_vk

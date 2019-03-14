@@ -49,7 +49,7 @@ def makeTime(dt,tn):
     return [om, thz, dom]
 
 ########################################################################
-def printParams(dtMD,dt,dT,steps,split,tn):
+def printParams(dtMD,dt,dT,steps,split,tn,fcut):
     """
     Prints params to screen
     """
@@ -60,7 +60,8 @@ def printParams(dtMD,dt,dT,steps,split,tn):
     print('\tBlocks for averaging:\t\t'+str(split)+'\t\t--')
     print('\tTime per block:\t\t\t'+str(np.round(tn*dt*1e9,3))+'\t\tns')
     print('\tMaximum Frequency:\t\t'+str(np.round(0.5/dt*1e-12,3))+'\t\tTHz')
-    print('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz\n')
+    print('\tFrequency Resolution:\t\t'+str(np.round(1/dt*1e-9/tn,3))+'\t\tMHz')
+    print('\tUsing cutoff frequency:\t\t'+str(fcut)+'\t\tTHz\n')
     print('\t--------------------------------------------------------\n')
 
 ############################################################################
