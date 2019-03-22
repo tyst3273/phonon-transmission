@@ -283,3 +283,31 @@ def readTr(infile):
                 data[i,j] = float(tmp[j])
             
     return [data, columns]
+
+###########################################################################
+def readVCM(infile):
+    """
+    """
+    with open(infile, 'r') as fid:
+        num_lines = sum(1 for line in fid)-3 #get number of line in file
+        fid.seek(0) #return cursor to start of file    
+    
+        for i in range(2):
+            fid.readline() #skip comments
+        col = fid.readline().strip().split()[2:]
+        nrows = int(fid.readline().strip().split()[1])
+        ncol = len(col)
+        ndat = int(num_lines/(1+nrows))
+        data = np.zeros((ndat,ncol))
+        
+        line = 0
+        fid.seek(0) #return cursor to start of file
+        for i in range(3):
+            fid.readline() #skip comments
+        for i in range(ndat):
+            fid.readline() #skip the timestep row
+            for j in range(nrows):
+                data[line,:] = fid.readline().strip().split()[1:]
+                line = line+1
+                
+    return [data, col]
