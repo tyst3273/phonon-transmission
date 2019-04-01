@@ -1,0 +1,164 @@
+atom_style      atomic
+units           metal
+dimension       3
+boundary        p p p
+processors      * * 1
+
+#----------------------ATOM DEFINITION-------------------------------
+
+neighbor 	2 bin
+neigh_modify 	delay 10
+neighbor        2.0 nsq
+neigh_modify 	delay 0 every 1 check yes
+
+variable 	SL string 6144
+variable	file string SiGe_${SL}
+variable 	forcefile string ${file}.Fij.dat
+
+atom_modify 	map hash
+#read_data 	*
+read_restart 	restart.150000000
+
+pair_style 	tersoff
+pair_style	* * SiCGe.tersoff Si(D) Ge
+timestep 	0.0008 # Used in ?
+
+variable        Vac equal 40.00
+variable        xinter equal 63.178
+variable        NX equal lx-${Vac}
+print           ${NX}
+variable        lSlab equal 7.37464
+
+#-----------The definition for the interface, extent and location------
+
+variable	dmid equal ${lSlab}
+variable 	xmid equal ${xinter}
+variable 	xmidlo equal ${xmid}-${dmid}
+variable 	xmidhi equal ${xmid}+${dmid}
+
+region 		left block ${xmidlo} ${xmid} INF INF INF INF units box
+region 		right block ${xmid} ${xmidhi} INF INF INF INF units box
+
+group 		interface_left region left
+group 		interface_right region right
+group 		interface union interface_left interface_right
+
+#-------------Compute force near interface------------------------------
+
+compute 	fxfyfz interface property/atom fx fy fz
+
+compute 	fxs interface property/atom fx
+compute 	fys interface property/atom fy
+compute 	fzs interface property/atom fz
+
+#-----------------------run 0-------------------------------------------
+
+fix 		NVE all nve
+
+variable 	N equal "count(all)"
+variable 	NL equal "count(interface_left)"
+variable 	NR equal "count(interface_right)"
+
+#--------------------Initialize groups----------------------------------
+
+group 		thisi id 1
+	
+variable 	hstep equal 0.01 # Amount of displacement
+variable 	hstepm2 equal -2*v_hstep
+
+shell 		rm ${forcefile}
+
+dump 		helpdump interface custom 1 ${forcefile} id c_fxs c_fys c_fzs
+dump_modify 	helpdump sort id
+dump_modify 	helpdump append yes
+
+#-----WRITE THE INTERFACE PARTICLES IDs and TYPEs TO ${forcefile}-----
+
+print 		"NL ${NL}" append ${forcefile}
+print 		"NR ${NR}" append ${forcefile}
+
+label 		loop1
+variable 	i1 loop $N
+			variable zi equal z[${i1}]
+			variable boolleft equal (${zi}<=${xmid})&&(${zi}>=${xmidlo})
+			variable boolright equal (${zi}>${xmid})&&(${zi}<=${xmidhi})
+			if "${boolleft}" then &
+				"print '${i1} 1' append ${forcefile}"
+			if "${boolright}" then &
+				"print '${i1} 2' append ${forcefile}"
+			next i1
+jump 		SELF loop1
+
+print 		"HSTEP ${hstep}" append ${forcefile}
+thermo_modify 	flush yes
+
+variable 	counter equal 0
+
+label 		loop_i
+
+variable 	i loop $N
+		variable zi equal z[${i}]
+		variable boolleft equal (${zi}<=${xmid})&&(${zi}>=${xmidlo})
+		variable boolright equal (${zi}>${xmid})&&(${zi}<=${xmidhi})
+		print '$i ${boolleft} ${boolright}'
+		if "!${boolleft}" then &
+			"next i" &
+			"jump SELF loop_i" &
+			"jump SELF final_break"
+
+        	group thisi delete
+        	group thisi id $i
+
+#-----X DIRECTION DISPLACEMENTS TO POSITIVE AND NEGATIVE DIRECTION-------------
+
+displace_atoms	thisi move ${hstep} 0 0
+variable 	counter equal ${counter}+1
+reset_timestep 	${counter}
+print 		"counter=${counter}"
+run 		0 # Update the forces in the compute
+
+displace_atoms 	thisi move ${hstepm2} 0 0
+variable 	counter equal ${counter}+1
+reset_timestep 	${counter}
+print 		"counter=${counter}"
+run 		0 # Update the forces in the compute
+
+displace_atoms 	thisi move ${hstep} 0 0
+
+#------Y DIRECTION DISPLACEMENTS TO POSITIVE AND NEGATIVE DIRECTION-----------
+
+displace_atoms 	thisi move 0 ${hstep} 0
+variable 	counter equal ${counter}+1
+reset_timestep 	${counter}
+print 		"counter=${counter}"
+run 		0 # Update the forces in the compute
+
+displace_atoms 	thisi move 0 ${hstepm2} 0
+variable 	counter equal ${counter}+1
+reset_timestep 	${counter}
+print 		"counter=${counter}"
+run 		0 # Update the forces in the compute
+
+displace_atoms 	thisi move 0 ${hstep} 0
+
+#----Z DIRECTION DISPLACEMENTS TO POSITIVE AND NEGATIVE DIRECTION------------
+
+displace_atoms 	thisi move 0 0 ${hstep}
+variable 	counter equal ${counter}+1
+reset_timestep 	${counter}
+print 		"counter=${counter}"
+run 		0 # Update the forces in the compute
+
+displace_atoms 	thisi move 0 0 ${hstepm2}
+variable 	counter equal ${counter}+1
+reset_timestep 	${counter}
+print 		"counter=${counter}"
+run 		0 # Update the forces in the compute
+
+displace_atoms 	thisi move 0 0 ${hstep}
+
+next 		i
+jump 		SELF loop_i
+label 		final_break
+print 		"all done"
+
