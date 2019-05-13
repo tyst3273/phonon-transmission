@@ -1,0 +1,60 @@
+atom_style	atomic 
+units		metal
+dimension	3
+boundary	p p p
+processors	* * *
+
+# ---------------------------------------------------------
+read_data       data.relax
+pair_style	tersoff
+pair_coeff	* * SiCGe.tersoff Si(D) Ge
+
+#--------------- Simulation control parameters ----------------------------------------------------------
+variable	T equal 300              				# Kelvin
+variable	V equal vol             				# A^3
+
+variable	dt equal 0.001          		
+variable	NRUNNVT equal 500000
+variable        NRUNNPT equal 500000
+variable	NRUNNVE equal 500000
+
+timestep  	${dt}
+dump		snapxyz all custom 10000 sisnap.lammpstrj id type x y z
+
+# -------------- Relax Structure at 0K --------------------------
+thermo_style	custom step temp pe etotal press pxx pyy pzz lx ly lz fnorm fmax
+thermo		1000
+fix		boxrelax all box/relax x 0 y 0 z 0 couple none		
+minimize	0.0 1.0e-8 200000 10000000  
+min_style	sd 
+min_modify	dmax 0.2 
+unfix		boxrelax
+
+# -------------- NVT Thermalization ------------------------------
+thermo_style	custom step temp pe etotal press pxx pyy pzz lx ly lz 
+thermo		10000
+velocity	all create $T ${SEED} mom yes rot yes dist gaussian 
+fix		NVT all nvt temp $T $T $(100*dt) tchain 10 
+run		${NRUNNVT}
+unfix		NVT
+
+# -------------- NVE Equilibration ----------------------------------
+fix             NVE all nve 
+run             ${NRUNNVE}
+unfix           NVE
+
+# ------------ Pressure Relaxation -----------------------------------------
+fix             pstat all press/berendsen x 0.0 0.0 100 y 0.0 0.0 100 z 0.0 0.0 100 couple none 
+fix		tstat all temp/berendsen $T $T $(100*dt) 
+fix 		NPT all nve 
+run             ${NRUNNPT} 
+unfix           pstat
+unfix		tstat
+unfix 		NPT
+
+# -------------- NVE Equilibration ----------------------------------
+fix             NVE all nve 
+run             ${NRUNNVE}
+unfix           NVE
+
+write_data	data.relaxed nocoeff
