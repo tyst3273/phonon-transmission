@@ -1,5 +1,0 @@
-%%%%%%%%% Probably wrong %%%%%%%%%%%%%%%%%%%%%
-G=trapz(oms_fft,real(Jom_ave))/2/3.14159/1.981e-17*kb ?????
-
-%%%%%%%%%% Change the length to fit the system size %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-kappe=trapz(OM, ((data(3,:)*kb/1.981e-17*<length>e-10)*10e12))

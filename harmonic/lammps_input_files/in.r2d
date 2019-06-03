@@ -1,0 +1,19 @@
+########## required parameters ##################
+atom_style      atomic
+units           metal
+dimension       3
+boundary        p p p
+processors      * * *
+
+#-------- read restart file positions into memory
+shell 		rm data.restart
+
+read_restart    restart
+pair_style 	tersoff
+pair_coeff 	* * SiCGe.tersoff Si(D) Ge
+
+#fix 		NVE all nve
+
+#-------- write data file -------------------
+write_data	data.restart nocoeff
+

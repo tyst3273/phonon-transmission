@@ -1,0 +1,191 @@
+######## simulation setup ##############################
+variable        T       equal 300           # Kelvin
+variable        kB      equal 8.6173324e-5  # [eV/K] Boltzmann
+variable        A2m     equal 1.0e-10
+variable        ps2s    equal 1.0e-12
+variable        eV2J    equal 1.60217646e-19
+variable        convert equal ${eV2J}/${A2m}/${A2m}/${ps2s}
+
+# ----------- Basic setup ----
+atom_style      atomic
+units           metal
+dimension       3
+boundary        p p p
+processors      * * 1 
+
+# ----------- Define lattice to use for group definitions ----
+#lattice        custom 43.4993955 a1 1.0 0.0 0.0 a2 0.0 0.24976543064834084878 0.0 a3 0.0 0.0 6.3456973787 basis 0.0 0.0 0.0	##Underlining lattice is with twice the lattice parameter, z-direction cell parameter is 14.** times the lattice parameter to ensure there is a vacuum block with the film 
+
+atom_modify	map hash
+read_data	data.forces
+
+# ----------- Define potential and useful quantities ----
+
+pair_style      tersoff				##Potential
+pair_coeff      * * SiCGe.tersoff Si(D) Ge
+neighbor	0.5 bin
+timestep        0.0008				##1 fs timestep
+thermo          2000 #100			##
+
+
+# ----------- Fix some atoms to avoid drift ----
+
+variable	filename string membrane
+variable        filetowrite string ${filename}.Fij.dat
+
+variable        xinter equal 269.3895 #coordinate of interface; must match exactly for forces and vels
+
+variable	Vac equal 40.00
+variable        NX equal lx-${Vac}
+print           ${NX}
+variable        x_min equal (xlo+${Vac}/2)
+print           ${x_min}
+variable        x_max equal (xhi-${Vac}/2)
+print           ${x_max}
+variable        dmid equal 5.6 #must match for forces and vels exactly
+
+variable	xmid equal ${xinter}
+variable        xmidL equal ${xinter}-0.1
+variable	xmidR equal ${xinter}+0.1
+variable        xmidlo equal ${xmid}-${dmid}
+variable        xmidhi equal ${xmid}+${dmid}-0.48
+
+region          left block ${xmidlo} ${xmidL} INF INF INF INF units box
+region          right block ${xmidR} ${xmidhi} INF INF INF INF units box
+group           interface_left region left
+group           interface_right region right
+group           interface union interface_left interface_right
+
+# ---- COLLECT FORCES HERE :) ----
+
+####
+####
+####
+
+#------------------Compute Forces on atoms--------------------------------------
+
+compute 	fxfyfz interface property/atom fx fy fz
+
+compute 	fxs interface property/atom fx
+compute 	fys interface property/atom fy
+compute 	fzs interface property/atom fz
+
+#-------------------------- run 0 ------------------------------------------------
+
+fix 		NVE all nve
+
+variable 	N equal "count(all)"
+variable	NL equal "count(interface_left)"
+variable 	NR equal "count(interface_right)"
+
+#----------------------------Initialize groups--------------------------------------
+
+group 		thisi id 1
+
+variable 	hstep equal 0.01 # Amount of displacement
+variable 	hstepm2 equal -2*v_hstep
+
+shell 		rm ${filetowrite}
+
+dump 		helpdump interface custom 1 ${filetowrite} id c_fxs c_fys c_fzs
+dump_modify 	helpdump sort id
+dump_modify 	helpdump append yes
+
+#---------------- WRITE THE INTERFACE PARTICLES IDs and TYPEs TO ${filetowrite}---------
+
+print 		"NL ${NL}" append ${filetowrite}
+print 		"NR ${NR}" append ${filetowrite}
+
+label 		loop1
+variable 	i1 loop $N
+        variable 	xi equal x[${i1}]
+        variable 	boolleft equal (${xi}<=${xmidL})&&(${xi}>=${xmidlo})
+        variable 	boolright equal (${xi}>=${xmidR})&&(${xi}<=${xmidhi})
+        if 		"${boolleft}" then &
+                		"print '${i1} 1' append ${filetowrite}"
+        if 		"${boolright}" then &
+                		"print '${i1} 2' append ${filetowrite}"
+        next 		i1
+
+jump 		SELF loop1
+
+
+#-----------------------------------------------------------------------------
+
+print 		"HSTEP ${hstep}" append ${filetowrite}
+thermo_modify 	flush yes
+
+variable 	counter equal 0
+
+label 		loop_i
+
+variable 	i loop $N
+         variable 	xi equal x[${i}]
+         variable 	boolleft equal (${xi}<=${xmidL})&&(${xi}>=${xmidlo})
+         variable 	boolright equal (${xi}>=${xmidR})&&(${xi}<=${xmidhi})
+         print 		'$i ${boolleft} ${boolright}'
+         if 		"!${boolleft}" then &
+           			"next i" &
+            			"jump SELF loop_i" &
+            			"jump SELF final_break"
+
+         group 		thisi delete 
+         group 		thisi id $i
+
+         #---------------- X DIRECTION DISPLACEMENTS TO POSITIVE AND NEGATIVE DIRECTION-------------------
+
+         displace_atoms 	thisi move ${hstep} 0 0
+         variable 		counter equal ${counter}+1
+         reset_timestep 	${counter}
+         print 			"counter=${counter}"
+         run 			0 # Update the forces in the compute
+
+         displace_atoms 	thisi move ${hstepm2} 0 0
+         variable 		counter equal ${counter}+1
+         reset_timestep 	${counter}
+         print 			"counter=${counter}"
+         run 			0 # Update the forces in the compute
+
+         displace_atoms 	thisi move ${hstep} 0 0
+
+         #---------------- Y DIRECTION DISPLACEMENTS TO POSITIVE AND NEGATIVE DIRECTION---------------------
+
+         displace_atoms 	thisi move 0 ${hstep} 0
+         variable 		counter equal ${counter}+1
+         reset_timestep 	${counter}
+         print 			"counter=${counter}"
+         run 			0 # Update the forces in the compute
+
+         displace_atoms 	thisi move 0 ${hstepm2} 0
+         variable 		counter equal ${counter}+1
+         reset_timestep 	${counter}
+         print 			"counter=${counter}"
+         run 			0 # Update the forces in the compute
+
+         displace_atoms 	thisi move 0 ${hstep} 0
+
+         #--------------- Z DIRECTION DISPLACEMENTS TO POSITIVE AND NEGATIVE DIRECTION----------------------
+
+         displace_atoms 	thisi move 0 0 ${hstep}
+         variable 		counter equal ${counter}+1
+         reset_timestep 	${counter}
+         print 			"counter=${counter}"
+         run 			0 # Update the forces in the compute
+
+         displace_atoms 	thisi move 0 0 ${hstepm2}
+         variable 		counter equal ${counter}+1
+         reset_timestep 	${counter}
+         print 			"counter=${counter}"
+         run 			0 # Update the forces in the compute
+
+         displace_atoms 	thisi move 0 0 ${hstep}
+
+next 		i
+jump 		SELF loop_i
+label 		final_break
+
+print 		"Done with FORCES, now VELS"
+
+#####
+#####
+#####
