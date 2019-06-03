@@ -13,19 +13,19 @@ This is the main function calling from the module
 
 import numpy as np
 import sys
-import harmFX as fx
+import subroutines as fx
 import matplotlib.pyplot as plt
 fx.tic()
 
 ##### SIMULATION PARAMETERS #####
-dT = 6 #NEMD bath temperature difference
+dT = 60 #NEMD bath temperature difference
 
-dtMD = 4.3e-15 #MD timestep
+dtMD = 0.5e-15 #MD timestep
 dn = 2**5 #frequency velocities are printed
 dt = dtMD*dn #effective timestep for velocity data
-steps = 2**23 #number of simulation steps
+steps = 2**25 #number of simulation steps
 
-split = 6 #number of chunks to split data into for averaging
+split = 20 #number of chunks to split data into for averaging
 tn = int(steps/dn/split) #number of steps per block of data
 
 win = 0.05 #gaussian smoothing width = THz
@@ -33,7 +33,7 @@ kb = 1.38063e-23 #Boltzmann's constant, J/K
 
 forcefile = 'Fij.dat'
 velsfile = 'vels.compact.dat'
-outfile = 'tr.ar.nozero.dat'
+outfile = 'si.1nm.prist.dat'
 
 conv = 1.602e-19/1e-24 #convert: v*dF/du*v = [A/ps]*[eV/A]/[A]*[A/ps]  
 # eV/ps^2; 1 eV = 1.602e-19 J, 1 ps = 1e-12 s
