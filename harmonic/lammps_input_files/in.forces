@@ -1,54 +1,41 @@
-######## simulation setup ##############################
-variable        T       equal 300           # Kelvin
-variable        kB      equal 8.6173324e-5  # [eV/K] Boltzmann
+######## simulation setup ################
+variable        T       equal 300          
+variable        kB      equal 8.6173324e-5  
 variable        A2m     equal 1.0e-10
 variable        ps2s    equal 1.0e-12
 variable        eV2J    equal 1.60217646e-19
 variable        convert equal ${eV2J}/${A2m}/${A2m}/${ps2s}
 
-# ----------- Basic setup ----
+# ----------- Basic setup -------------
 atom_style      atomic
 units           metal
 dimension       3
 boundary        p p p
-processors      * * 1 
-
-# ----------- Define lattice to use for group definitions ----
-#lattice        custom 43.4993955 a1 1.0 0.0 0.0 a2 0.0 0.24976543064834084878 0.0 a3 0.0 0.0 6.3456973787 basis 0.0 0.0 0.0	##Underlining lattice is with twice the lattice parameter, z-direction cell parameter is 14.** times the lattice parameter to ensure there is a vacuum block with the film 
-
+processors      * 1 1 
 atom_modify	map hash
-read_data	data.forces
+read_data	data.pos
 
 # ----------- Define potential and useful quantities ----
-
-pair_style      tersoff				##Potential
+pair_style      tersoff			
 pair_coeff      * * SiCGe.tersoff Si(D) Ge
-neighbor	0.5 bin
-timestep        0.0008				##1 fs timestep
-thermo          2000 #100			##
+timestep        0.0005			
 
+# ----------- Fix some atoms to avoid drift ---------------
+variable        filetowrite string Fij.dat
 
-# ----------- Fix some atoms to avoid drift ----
-
-variable	filename string membrane
-variable        filetowrite string ${filename}.Fij.dat
-
-variable        xinter equal 269.3895 #coordinate of interface; must match exactly for forces and vels
-
-variable	Vac equal 40.00
+variable	vac equal 20.0
 variable        NX equal lx-${Vac}
 print           ${NX}
-variable        x_min equal (xlo+${Vac}/2)
-print           ${x_min}
-variable        x_max equal (xhi-${Vac}/2)
-print           ${x_max}
-variable        dmid equal 5.6 #must match for forces and vels exactly
 
-variable	xmid equal ${xinter}
-variable        xmidL equal ${xinter}-0.1
-variable	xmidR equal ${xinter}+0.1
+variable        x_min equal (xlo+${vac})
+variable        x_max equal (xhi-${vac})
+
+variable        dmid equal 3
+variable	xmid equal #NUM
+variable        xmidL equal ${xinter}-0.05
+variable	xmidR equal ${xinter}+0.05
 variable        xmidlo equal ${xmid}-${dmid}
-variable        xmidhi equal ${xmid}+${dmid}-0.48
+variable        xmidhi equal ${xmid}+${dmid}
 
 region          left block ${xmidlo} ${xmidL} INF INF INF INF units box
 region          right block ${xmidR} ${xmidhi} INF INF INF INF units box
@@ -56,21 +43,11 @@ group           interface_left region left
 group           interface_right region right
 group           interface union interface_left interface_right
 
-# ---- COLLECT FORCES HERE :) ----
-
-####
-####
-####
-
-#------------------Compute Forces on atoms--------------------------------------
-
+#------------------Compute Forces on atoms---------------
 compute 	fxfyfz interface property/atom fx fy fz
-
 compute 	fxs interface property/atom fx
 compute 	fys interface property/atom fy
 compute 	fzs interface property/atom fz
-
-#-------------------------- run 0 ------------------------------------------------
 
 fix 		NVE all nve
 
@@ -82,7 +59,7 @@ variable 	NR equal "count(interface_right)"
 
 group 		thisi id 1
 
-variable 	hstep equal 0.01 # Amount of displacement
+variable 	hstep equal 0.01 
 variable 	hstepm2 equal -2*v_hstep
 
 shell 		rm ${filetowrite}
@@ -92,7 +69,6 @@ dump_modify 	helpdump sort id
 dump_modify 	helpdump append yes
 
 #---------------- WRITE THE INTERFACE PARTICLES IDs and TYPEs TO ${filetowrite}---------
-
 print 		"NL ${NL}" append ${filetowrite}
 print 		"NR ${NR}" append ${filetowrite}
 
@@ -109,9 +85,7 @@ variable 	i1 loop $N
 
 jump 		SELF loop1
 
-
-#-----------------------------------------------------------------------------
-
+#------------- Loop over atoms on one side, compute forces in all others -----------------
 print 		"HSTEP ${hstep}" append ${filetowrite}
 thermo_modify 	flush yes
 
@@ -183,9 +157,3 @@ variable 	i loop $N
 next 		i
 jump 		SELF loop_i
 label 		final_break
-
-print 		"Done with FORCES, now VELS"
-
-#####
-#####
-#####

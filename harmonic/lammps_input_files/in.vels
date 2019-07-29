@@ -1,63 +1,53 @@
-################## simulation setup ####################
+############## simulation setup ###################
 atom_style      atomic
 units           metal
 dimension       3
 boundary        p p p
 processors      * 1 1 
 
-variable        kB      equal 8.6173324e-5			# eV/K Boltzmann
-variable        a2m     equal 1.0e-1				# angstrom to m
-variable        ps2s    equal 1.0e-12				# ps to s
-variable        eV2J    equal 1.60217646e-19			# eV to Joules
-variable        convert equal ${eV2J}/${a2m}/${a2m}/${ps2s}	# convert flux for SI units [J/m/m/s]
+variable        kB      equal 8.6173324e-5			
+variable        a2m     equal 1.0e-1			
+variable        ps2s    equal 1.0e-12				
+variable        eV2J    equal 1.60217646e-19			
+variable        convert equal ${eV2J}/${a2m}/${a2m}/${ps2s}
 
 #---------- system --------------------
-read_data       data.vels
+read_data       data.pos
 pair_style      tersoff			
-pair_coeff      * * SiCGe.tersoff Si(D) Ge			
+pair_coeff      * * SiCGe.tersoff Si(D)
 
 #---------- temperature --------------------
 timestep        0.0005	
 variable	T equal 300
-variable	dT equal 60
+variable	dT equal 30
 variable	TR equal $T-${dT}/2
 variable	TL equal $T+${dT}/2
 
-variable        vac equal 20					# vacuum padding supercell to keep it from interacting with next periodic image
+variable        vac equal 20					
 variable        x_min equal xlo+${vac} 
 variable        x_max equal xhi-${vac}
 
+########## Bath and fixed block definitions ################
+variable	aSi equal 5.431				
+variable	slab equal ${aSi}				
 
+variable	fixed equal ${aSi}*0.5
+variable	baths equal ${aSi}*2
 
-################ Bath and fixed block definitions ########################################
-variable	aSi equal #5.431				# lattice parameter for Si in angstrom
-variable	aGe equal #5.431				# lattice parameter for Ge in angstrom
-
-variable	slab equal (${aSi}+${aGe})/2			# thickness of slab for binning to calculate average temp.
-
-variable	fixedSi equal ${aSi}*2	
-variable	bathSi equal ${aSi}*10	
-variable	fixedGe equal ${aGe}*2	
-variable	bathGe equal ${aGe}*10	
-
-variable	x1 equal ${x_min}+${fixedSi}
-variable	x2 equal ${x_max}-${fixedGe}
-variable	x3 equal ${x1}+${bathSi}
-variable	x4 equal ${x2}-${bathGe}
-region          fix_L block INF ${x1} INF INF INF INF		# atoms on the right end
-region          fix_R block ${x2} INF INF INF INF INF		# atoms on the left end
+variable	x1 equal ${x_min}+${fixed}
+variable	x2 equal ${x_max}-${fixed}
+variable	x3 equal ${x1}+${baths}
+variable	x4 equal ${x2}-${baths}
+region          fix_L block INF ${x1} INF INF INF INF		
+region          fix_R block ${x2} INF INF INF INF INF		
 region          fix_both union 2 fix_L fix_R
 group           fixed region fix_both					
-group           moves subtract all fixed			# the rest of the atoms can move
+group           moves subtract all fixed		
 
-
-
-################### Velocity groups for transmission calculation ###################
-#------- interface ----------
-variable        xinter equal 42.767 				# coordinate of interface
-variable        dmid equal 3					# half the width of velocity block
-variable        xmid equal ${xinter}
-variable        xmidL equal ${xmid}-0.05			# a tiny buffer so atoms don't overlap
+###### Velocity groups for transmission calculation ###########
+variable        dmid equal 6					
+variable        xmid equal 26.47617
+variable        xmidL equal ${xmid}-0.05			
 variable        xmidR equal ${xmid}+0.05
 variable        xmidlo equal ${xmidL}-${dmid}
 variable        xmidhi equal ${xmidR}+${dmid}
@@ -68,82 +58,49 @@ group           interface_L region int_L
 group           interface_R region int_R
 group           interface union interface_L interface_R
 
-#------- si ----------
-variable        xinter equal 34.635 				# coordinate of virtual Si interface
-variable        dmid equal 3					# half the width of velocity block
-variable        xmid equal ${xinter}
-variable        xmidL equal ${xmid}-0.05			# a tiny buffer so atoms don't overlap
-variable        xmidR equal ${xmid}+0.05
-variable        xmidlo equal ${xmidL}-${dmid}
-variable        xmidhi equal ${xmidR}+${dmid}
-
-region          si_L block ${xmidlo} ${xmidL} INF INF INF INF units box
-region          si_R block ${xmidR} ${xmidhi} INF INF INF INF units box
-group           silicon_L region si_L
-group           silicon_R region si_R
-group           si union silicon_L silicon_R
-
-#------- ge ----------
-variable        xinter equal 50.916 				# coordinate of virtual Ge interface
-variable        dmid equal 3					# half the width of velocity block
-variable        xmid equal ${xinter}
-variable        xmidL equal ${xmid}-0.05			# a tiny buffer so atoms don't overlap
-variable        xmidR equal ${xmid}+0.05
-variable        xmidlo equal ${xmidL}-${dmid}
-variable        xmidhi equal ${xmidR}+${dmid}
-
-region          ge_L block ${xmidlo} ${xmidL} INF INF INF INF units box
-region          ge_R block ${xmidR} ${xmidhi} INF INF INF INF units box
-group           germanium_L region ge_L
-group           germanium_R region ge_R
-group           ge union germanium_L germanium_R
-
-
-
 ###############################  NEMD calculation  #######################################
+
 #----------- heat reservoirs --------------------------------
-region          hotregion block ${x1} ${x3} INF INF INF INF	# atoms in cold bath
+region          hotregion block ${x1} ${x3} INF INF INF INF	
 group           hot region hotregion
-region          coldregion block ${x4} ${x2} INF INF INF INF	# atoms in hot bath
+region          coldregion block ${x4} ${x2} INF INF INF INF
 group           cold region coldregion
 
 ###### uncomment and use VMD to check that interface definitions are what you expect
-#group		blocks union fixed hot cold interface si ge	
+#group		blocks union fixed hot cold interface
 #dump		blocks blocks atom 10 blocks.lammpstrj  	
 ######
 
-variable        xlen equal ${x4}-${x3}				# length between reservoirs
-variable        cx equal ly*lz					# cross section 
+variable        xlen equal ${x4}-${x3}				
+variable        cx equal ly*lz					
 variable    	v equal xlen*cx
 
-# -------- write structure to file for VMD visualization
+# ----- write structure to file for VMD visualization ------
 dump            snap all atom 20000 snap.lammpstrj
 dump_modify	snap append yes
 
 # ----------- Initialize velocities ----------------
-velocity        moves create ${T} ${SEED} mom yes rot yes dist gaussian		# maxwell-boltzmann
-velocity	fixed set 0.0 0.0 0.0 units box					# 0 velocity in fixed block
+velocity        moves create ${T} ${SEED} mom yes rot yes dist gaussian		
+velocity	fixed set 0.0 0.0 0.0 units box					
 
 # --------- thermalization -------------------------
-variable	Tis atom ${TL}-x/xhi*(${TL}-${TR}) 				# linearly interpolate between bath temps
-fix		NVE moves nve							# need verelt integrator for langevin
-fix		NVT moves langevin v_Tis 1.0 $(dt*100) ${SEED}			# v_Tis thermostats velocites to pos. dependent variable
-fix		freeze fixed setforce 0.0 0.0 0.0				# 0 forces in fixed block
+variable	Tis atom ${TL}-x/xhi*(${TL}-${TR}) 				
+fix		NVE moves nve							
+fix		NVT moves langevin v_Tis 1.0 $(dt*100) ${SEED}			
+fix		freeze fixed setforce 0.0 0.0 0.0				
 compute         real_temp moves temp
 thermo_style	custom step temp c_real_temp pe etotal press pxx pyy pzz	
 thermo          10000
 thermo_modify	flush yes
 
-run        	2000000
-unfix           NVT		# leave the verlet integrator on, turn off the thermostatting
-
+run        	250000
+unfix           NVT	
 
 #---------------  NEMD  ------------------------- 
-restart         500000 restart
 reset_timestep	1
 
-fix		fcold cold langevin ${TR} ${TR} $(dt*100) ${langSEED} tally yes		# cold block
-fix		fhot hot langevin ${TL} ${TL} $(dt*100) ${langSEED} tally yes		# hot block
+fix		fcold cold langevin ${TR} ${TR} $(dt*100) ${langSEED} tally yes		
+fix		fhot hot langevin ${TL} ${TL} $(dt*100) ${langSEED} tally yes	
 
 variable	fluxout equal f_fcold/v_cx/step/dt*v_convert
 variable	fluxin equal f_fhot/v_cx/step/dt*v_convert
@@ -154,45 +111,16 @@ thermo_modify	flush yes
 compute		ke moves ke/atom
 variable 	temp atom c_ke/1.5/v_kB
 compute         cc1 moves chunk/atom bin/1d x lower ${slab} bound x ${x1} ${x2} units box
-compute         cc2 moves chunk/atom bin/1d x lower ${slab} bound x ${x1} ${x2} units box
 fix 		cc1_T moves ave/chunk 1 200000 200000 cc1 v_temp file tmp.profile.0
 
-run 		20000000
-write_restart   restart.*
+run 		250000
+write_restart   restart.stationary.*
 
-fix		cc2_T moves ave/chunk 1 200000 200000 cc2 v_temp file tmp.profile.final
-
-
-
-#################### Collect Velocities ############################
-variable        dn equal 32             # 2**5
-
-#---------------- Interface -----------------
-dump            vels interface custom ${dn} interface.vels.dat id type vx vy vz
+########### Collect Velocities ##############
+variable        dn equal 32            
+dump            vels interface custom ${dn} vels.dat id type vx vy vz
 dump_modify     vels format line "%d %d %0.8g %0.8g %0.8g"
 dump_modify     vels sort id
 
-dump            pos interface custom 1000 interface.pos.dat id type x y z
-dump_modify     pos format line "%d %d %0.8g %0.8g %0.8g"
-dump_modify     pos sort id
-
-#---------------- Si --------------------------
-dump            sivels si custom ${dn} si.vels.dat id type vx vy vz
-dump_modify     sivels format line "%d %d %0.8g %0.8g %0.8g"
-dump_modify     sivels sort id
-
-dump            sipos si custom 1000 si.pos.dat id type x y z
-dump_modify     sipos format line "%d %d %0.8g %0.8g %0.8g"
-dump_modify     sipos sort id
-
-#---------------- Ge --------------------------
-dump            gevels ge custom ${dn} ge.vels.dat id type vx vy vz
-dump_modify     gevels format line "%d %d %0.8g %0.8g %0.8g"
-dump_modify     gevels sort id
-
-dump            gepos ge custom 1000 ge.pos.dat id type x y z
-dump_modify     gepos format line "%d %d %0.8g %0.8g %0.8g"
-dump_modify     gepos sort id
-
-run             33554432		# 2**25
+run		524288	
 write_restart	restart.final.*

@@ -12,8 +12,6 @@ read_restart    restart
 pair_style 	tersoff
 pair_coeff 	* * SiCGe.tersoff Si(D) Ge
 
-#fix 		NVE all nve
-
 #-------- write data file -------------------
 write_data	data.restart nocoeff
 
